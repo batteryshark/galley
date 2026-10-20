@@ -8,6 +8,7 @@
   },
   "scripts": {
     "test": "node --test test/*.test.mjs",
+    "test:native": "npm --prefix test/native-runtime test",
     "start": "node bin/galley.mjs serve"
   },
   "dependencies": {

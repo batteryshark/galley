@@ -27,6 +27,61 @@ npm test
 
 There is no build step or npm publication; `private: true` is intentional. Tests use temporary synthetic drafts and skill fixtures, not your enrolled document. They do not establish compatibility with your actual editing runtime or real phone gestures.
 
+Root installation stays lightweight: 19 application dependencies, no OpenCode SDK.
+Actual pinned native contracts are an **optional, separately installed** suite:
+
+```sh
+npm ci --prefix test/native-runtime --ignore-scripts --no-fund
+npm run test:native
+```
+
+That suite fails rather than silently skipping a missing SDK. It uses synthetic
+HOME/XDG, denied external providers/OAuth paths and a local fake provider, never
+your live author session. Its pinned SDK 2.0.32 dev-only tree has 17 known advisory
+entries; see [test scope and notices](test/native-runtime/README.md). Neither normal
+`npm ci` nor production `npm ci --omit=dev --ignore-scripts` installs that tree.
+
+## Start a dedicated writer and piece
+
+The [one-command setup guide](NEW-PIECE.md) connects a **caller-owned private writing
+pack** to a compatible existing OpenCode/OpenChamber runtime. After one-time private
+pack/runtime configuration and separately authorized service activation:
+
+```sh
+export GALLEY_NEW_CONFIG=/absolute/private/local.json
+node bin/galley-new.mjs --title 'A useful point' --format long-form
+node bin/galley-new.mjs --resume PIECE_ID
+```
+
+NEW returns a **24-hour phone capability** and the exact direct OpenChamber
+`{sessionId, directory, agent}` conversation. The same named writer handles
+design-piece, design-visuals, draft and edit, saving brief, beats, visual plan,
+draft and continuation artifacts. RESUME keeps that session/history without a
+kickoff or replay. Phone HTML refreshes after its revisions; notes/Send go back
+to that same writer. No new permanent listener: managed piece capabilities and
+the legacy document coexist on the same review listener.
+
+Voice-memory proposals stay in the piece unless `--learn-memory` explicitly grants
+the pack's single conflict-protected learned file. Immutable pack/source drift
+fails closed even without a version bump. Exact session identity and permissions
+remain enforced; supported work/assist metadata is advisory UI context only, never
+authorization or automatic work. Uncertain create/delivery outcomes are no-replay
+fences. See the guide for the precise metadata and recovery contract.
+
+No private pack, voice, local config, model or host default is bundled. Compatible
+CLI **and host 2.0.32** are required; version skew refuses, with no automatic
+download/upgrade. Plugins/tools are **per-piece only**, never globally registered.
+The scoped writer cannot capture/generate images: it must request the needed asset
+or capability rather than fake a capture. Pi and Claude Code variants are thin,
+conversation-only/no-tools generators; enrolled editing and Codex are unsupported.
+See [adapter boundaries](PACK-WRITER.md).
+
+Bounded synthetic verification completed cold activation, the same visible writer
+across all phases, edit/resume/note/render delivery and full guidance, plus actual
+outgoing tool-schema isolation on the pinned runtime. This is **not deployment,
+physical-phone verification or principal-piece acceptance**. Private configuration
+and command/service installation remain local operator work, not public defaults.
+
 ## Try rendered review, disconnected
 
 Create a small Markdown file in a project you own. Save a private `binding.json` outside the public checkout, replacing every illustrative path below with an existing canonical absolute path (no symlinks):
@@ -55,7 +110,7 @@ Select text, tap the contextual field (or start typing on desktop), and finish w
 
 `assetRoots` can list up to 16 explicit existing image directories. Optional `siteAssetRoot` must be one of them and maps `/assets/` references. Never enroll a real document merely to try screenshots.
 
-## Connect the actual editor
+## Connect the legacy editor
 
 Follow the [native setup guide](docs/native-setup.md): supply four caller-owned skill files, generate inert artifacts, separately install the writer profile and project-local plugin, start one compatible OpenCode runtime, then run Galley’s native **startup** connector. Later restarts use **attach** to the confirmed writer. OpenChamber can display and converse with that same runtime session; it is not a separate HTTP relay.
 
@@ -71,7 +126,7 @@ Use a private Tailscale Serve HTTPS mount, not Funnel. Both devices need tailnet
 
 ## Link lifecycle and recovery
 
-- CLI links expire after **one hour**. Renew by issuing a new `link`; this does not revoke older unexpired links. `revoke` invalidates all stored review links. The lower-level store API allows up to 24 hours, but the CLI has no TTL flag.
+- Legacy `galley.mjs link` links expire after **one hour**. Renew by issuing a new `link`; this does not revoke older unexpired links. `revoke` invalidates all stored review links. NEW-piece links last **24 hours**, with local renewal on resume; the legacy CLI has no TTL flag.
 - The serving process holds an exclusive `.galley` store lock. Gracefully stop it before running `link` or `revoke` from the same working directory, then restart disconnected `serve` or native **attach**, not native startup again. Keep the same store and native journals. There is no link-management UI in the current page.
 - Locks fail closed, including stale store locks. Confirm the old process is gone and reconcile state before any manual recovery; never delete a lock or journal to force a retry.
 - Uncertain startup or Send is a durable **no-replay fence**. Check the exact editor’s history and draft manually. Restarting, changing a request ID or generating another writer is not a safe retry. There is no automatic reconciliation/clear-fence CLI.

@@ -5,7 +5,7 @@ import { executeNative } from './native-worker.mjs';
 import { ipcRequest } from './native-ipc.mjs';
 
 // One fixed local binding. Reconnect is control-plane only: no retained jobs/replay.
-export function nativePlugin(bindingFile) {
+export function nativePlugin(bindingFile, { execute = executeNative } = {}) {
   return { id: 'galley.native', async setup(ctx) {
     const instance = randomBytes(32).toString('hex');
     const birth = processBirth(process.pid);
@@ -25,7 +25,7 @@ export function nativePlugin(bindingFile) {
           delay = 200;
           if (!job || stopped) return;
           let result, failed = false;
-          try { result = await executeNative(ctx, job, async () => { if (stopped) throw new Error('Unloaded'); await request(current, { op: 'authorize', id: job.id }); }); }
+          try { result = await execute(ctx, job, async () => { if (stopped) throw new Error('Unloaded'); await request(current, { op: 'authorize', id: job.id }); }); }
           catch { failed = true; }
           if (!stopped) await request(current, { op: 'result', id: job.id, result, failed });
         } catch { generation = undefined; delay = Math.min(delay * 2, 2000); /* Never replay a claimed job. */ }

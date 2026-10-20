@@ -25,7 +25,7 @@ export function ipcRequest(binding, body, ms = 1500) {
 // Galley owns this listener. Not HTTP, not mounted by the web server, no API proxy.
 export async function openNative({ directory, binding, ownerPID, ownerStartedAt, leaseMs = 4500 }) {
   const automatic = ownerPID === undefined && ownerStartedAt === undefined;
-  if ((!automatic && (!Number.isSafeInteger(ownerPID) || ownerPID < 1 || !Number.isFinite(ownerStartedAt))) || !binding.agent?.startsWith('galley-writer-')) throw new Error('Invalid native owner/writer');
+  if ((!automatic && (!Number.isSafeInteger(ownerPID) || ownerPID < 1 || !Number.isFinite(ownerStartedAt))) || !(binding.agent?.startsWith('galley-writer-') || (binding.protocol === 'pack-writer-v1' && binding.agent === 'writer'))) throw new Error('Invalid native owner/writer');
   await privateDirectory(directory, binding.sessionDirectory);
   const socket = path.join(directory, 'ipc.sock');
   if (Buffer.byteLength(socket) > 100) throw new Error('Unix socket path too long');

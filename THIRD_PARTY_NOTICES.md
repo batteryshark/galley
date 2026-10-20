@@ -1,6 +1,12 @@
 # Third-party notices
 
-Galley’s own code and documentation are offered under the root [MIT licence](LICENSE). Third-party material retains its own terms. This inventory covers all 19 packages in the shipped `package-lock.json`, checked against matching installed package metadata and licence files. Dependencies are installed separately, not vendored. Keep their original licence files when redistributing installed packages.
+Galley’s own code and documentation are offered under the root [MIT licence](LICENSE). Third-party material retains its own terms. This inventory covers all 19 packages in the root `package-lock.json`, checked against matching installed package metadata and licence files. Dependencies are installed separately, not vendored. Keep their original licence files when redistributing installed packages.
+
+The optional private test package in `test/native-runtime/` separately installs
+`@opencode/sdk@2.0.32` and its transitive dependencies, retaining their shipped
+licence notices. They are not vendored or relicensed here. Retain those notices
+when redistributing installed packages. The inventory and full texts below cover
+the root runtime 19 only, not an exhaustive licence audit of the optional lock.
 
 ## Locked dependency inventory
 

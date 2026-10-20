@@ -6,14 +6,16 @@ import { openNative } from '../src/native-ipc.mjs';
 import { startPreparedWriter } from '../src/startup.mjs';
 import { startServer } from '../src/server.mjs';
 import { readPrivate } from '../src/private.mjs';
+import { openPieceManager } from '../src/new-piece.mjs';
+import { openPieceControl } from '../src/piece-control.mjs';
 
 // All configuration is a trusted operator file. No control endpoint or browser input.
-let store, native, app;
+let store, native, app, pieces, control;
 let interrupted = false, signalDone;
 const signal = new Promise(resolve => { signalDone = resolve; });
 function stop() { interrupted = true; signalDone(); void native?.close(); }
 process.once('SIGINT', stop); process.once('SIGTERM', stop);
-async function close() { await app?.close(); await native?.close(); await store?.close(); }
+async function close() { await control?.close(); await app?.close(); await pieces?.close(); await native?.close(); await store?.close(); }
 try {
   const [file, ...extra] = process.argv.slice(2);
   if (!file || extra.length) throw new Error('Explicit operator configuration required');
@@ -40,7 +42,15 @@ try {
     await native.inspect(binding.sessionId);
     await store.transaction(state => { state.binding.upstreamIdentity = native.identity; });
   }
-  app = await startServer({ store, upstream: native, port: 4177, publicOrigin: process.env.GALLEY_ORIGIN });
+  if (c.managedPiecesFile) {
+    const pc = await readPrivate(c.managedPiecesFile);
+    if (pc.publicOrigin !== process.env.GALLEY_ORIGIN) throw new Error('Managed/legacy review origin mismatch');
+    pieces = await openPieceManager(pc);
+    const restored = await pieces.restore();
+    if (restored.unavailable.length) console.error('Some managed pieces are unavailable; their histories are retained without replay. Reconcile privately.');
+    control = await openPieceControl({ directory: pc.controlDirectory, manager: pieces });
+  }
+  app = await startServer({ store, upstream: native, port: 4177, publicOrigin: process.env.GALLEY_ORIGIN, ...(pieces ? { resolveReview: token => pieces.resolveReview(token) } : {}) });
   console.log('Galley native review on 127.0.0.1:4177/galley/. Admission is not edit completion.');
   await signal;
 } catch {

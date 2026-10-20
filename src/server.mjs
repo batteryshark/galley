@@ -21,12 +21,12 @@ async function body(req) {
   try { return JSON.parse(Buffer.concat(chunks).toString()); } catch { throw fail(400, 'Invalid JSON'); }
 }
 
-export async function startServer({ store, prefix = '/galley', port = 0, publicOrigin, upstream = disconnected, deliveryTimeout = 6000, webDirectory = continuousWeb, historicalTestMode = false }) {
+export async function startServer({ store: defaultStore, prefix = '/galley', port = 0, publicOrigin, upstream: defaultUpstream = disconnected, resolveReview, deliveryTimeout = 6000, webDirectory = continuousWeb, historicalTestMode = false }) {
   if (!['', '/galley'].includes(prefix)) throw new Error('Unsupported prefix');
-  await validateBinding(store.state.binding);
+  if (defaultStore) await validateBinding(defaultStore.state.binding);
+  if (!defaultStore && !resolveReview) throw new Error('Review enrollment required');
   let origin;
-  const document = presentationReader(store.state.binding);
-  const snapshot = async () => {
+  const snapshot = async (store, document) => {
     const doc = await document();
     await store.transaction(s => {
       if (s.observations.at(-1)?.presentationRevision !== doc.presentationRevision) {
@@ -82,11 +82,18 @@ export async function startServer({ store, prefix = '/galley', port = 0, publicO
         return send(200, await fs.readFile(new URL(name, `file://${webDirectory.endsWith('/') ? webDirectory : webDirectory + '/'}`)), route.endsWith('.js') ? 'text/javascript; charset=utf-8' : 'text/css; charset=utf-8');
       }
       const token = req.headers.authorization?.replace(/^Bearer /, '');
+      // Operator-owned registry only. Browser tokens can select solely an already
+      // enrolled capability, never a directory, pack, session or native method.
+      const selected = resolveReview ? await resolveReview(token) : undefined;
+      const store = selected?.store || defaultStore;
+      const upstream = selected?.upstream || defaultUpstream;
+      if (!store) throw fail(401, 'Review link expired or revoked');
+      const document = presentationReader(store.state.binding);
       const authorize = () => { if (!store.authorized(token)) throw fail(401, 'Review link expired or revoked'); };
       authorize();
       if (req.headers['sec-fetch-site'] === 'cross-site' || (req.headers.origin && req.headers.origin !== origin)) throw fail(403, 'Origin denied');
       if (req.method !== 'GET' && (req.headers.origin !== origin || req.headers['x-galley'] !== '1')) throw fail(403, 'CSRF guard');
-      if (req.method === 'GET' && route === '/api/document') return send(200, await snapshot());
+      if (req.method === 'GET' && route === '/api/document') return send(200, await snapshot(store, document));
       if (req.method === 'POST' && route === '/api/notes') return send(200, await collectNote({ store, document, authorize, data: await body(req) }));
       if (req.method === 'POST' && route === '/api/batches') {
         const result = await sendBatch({ store, document, authorize, data: await body(req), upstream, deliveryTimeout });
