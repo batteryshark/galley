@@ -1,0 +1,20 @@
+{
+  "name": "galley-local",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "start": "node bin/galley.mjs serve"
+  },
+  "dependencies": {
+    "entities": "8.1.0",
+    "marked": "18.1.1",
+    "parse5": "8.0.1",
+    "sanitize-html": "2.18.1",
+    "yaml": "2.9.1"
+  }
+}

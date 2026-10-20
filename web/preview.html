@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Galley · continuous reading preview</title>
+  <link rel="stylesheet" href="./preview.css">
+  <script src="./preview.js" defer></script>
+</head>
+<body>
+  <header><span>galley <small>interaction preview</small></span><button id="notes-toggle" hidden aria-expanded="false" aria-controls="notes">0 notes · local</button></header>
+  <main>
+    <article id="document">
+      <p class="eyebrow">FIELD NOTES / SYNTHETIC SAMPLE</p>
+      <h1>A slower way<br>to see the coast</h1>
+      <p class="lede">Some places are best understood on foot, with enough time to notice what sits between the landmarks.</p>
+      <p id="opening">We reached the harbour before the boats left. The water was still, and the path followed the shore past a row of empty benches. There was no particular destination to hurry towards.</p>
+      <figure><img id="coast" width="960" height="420" alt="Synthetic illustration of a quiet coast, pale sky and a winding path"><figcaption>An imagined coastline, drawn for this preview.</figcaption></figure>
+      <p id="next">Beyond the harbour, the road narrowed to a walking trail. Wild grass softened its edges. Every few minutes the sea disappeared behind the trees, then returned in a different shade of blue.</p>
+      <h2>Leave room for a detour</h2>
+      <p>The best part of the walk was not on our route. A small opening in the wall led down to a sheltered beach, where the only sound was water moving over stones.</p>
+      <p>We stayed until the light changed. By then, the tide had covered our first footprints, and the way back looked unfamiliar enough to feel like another walk.</p>
+      <h2>What we took home</h2>
+      <p>Not a list of places to return to, but a different sense of pace. Next time, we would start with fewer plans and leave the afternoon open.</p>
+    </article>
+  </main>
+  <div id="highlights" aria-hidden="true"></div>
+  <aside id="composer" hidden aria-label="Comment on selected passage">
+    <textarea id="comment" rows="2" maxlength="4000" placeholder="Add a thought…" aria-label="Comment on highlighted passage" enterkeyhint="done"></textarea>
+  </aside>
+  <aside id="notes" hidden aria-label="Locally collected notes"><h2>Collected here <small>Preview only · nothing sent</small></h2><div id="note-list"></div></aside>
+  <span id="announcement" class="sr-only" role="status" aria-live="polite"></span>
+</body>
+</html>

@@ -1,0 +1,7 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Galley</title><link rel="stylesheet" href="./continuous-v2/style.css"><script type="module" src="./continuous-v2/app.js"></script></head>
+<body><header><span>Galley</span><div><button id="notes-toggle" aria-expanded="false">0 notes</button><button id="send" disabled>Send</button></div></header>
+<p id="state" role="status" aria-live="polite"></p>
+<main><article id="document"></article></main><div id="highlights" aria-hidden="true"></div>
+<aside id="composer" hidden><textarea id="comment" rows="3" aria-label="Comment on selected passage" placeholder="Your note…" enterkeyhint="done"></textarea><small id="compose-state"></small></aside>
+<aside id="notes" hidden aria-label="Your notes"><h2>Your notes</h2><div id="note-list"></div></aside></body></html>
