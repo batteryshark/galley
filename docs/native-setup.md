@@ -1,5 +1,10 @@
 # Native editing setup
 
+The legacy explicit prepare/generate path below remains supported. For the newer
+journaled operator launcher with caller-configured image/chief tools and separate
+same-author draft review, see [writer workflow](writer-workflow.md). These optional
+tools do not change the default four-skill, enrolled-draft-only public profile.
+
 This guide describes the shipped source interface, not a one-command installer or a promise that every OpenCode/OpenChamber release is compatible. Start with a synthetic draft. Keep all paths, profiles, bindings, session output and capabilities private. All uppercase `/ABSOLUTE/...` paths and angle-bracket values below are placeholders to replace locally, not literal working settings.
 
 ## 1. Check the external runtime contract

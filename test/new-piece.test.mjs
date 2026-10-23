@@ -15,7 +15,7 @@ import { newPieceCLI } from '../bin/galley-new.mjs';
 import { startServer } from '../src/server.mjs';
 import { openStore } from '../src/store.mjs';
 
-async function fixture(t) {
+async function fixture(t, hostVersion = '2.0.32') {
   const root = await fs.mkdtemp(path.join(await fs.realpath(os.tmpdir()), 'n-'));
   const packDirectory = path.join(root, 'pack'), skillsRoot = path.join(root, 'skills');
   const manifest = { schema_version: 1, id: 'synthetic', visibility: 'private', version: '1.0.0', entry: 'SYSTEM.md',
@@ -29,7 +29,7 @@ async function fixture(t) {
   }
   await fs.writeFile(path.join(skillsRoot, 'start.md'), 'Synthetic source\n');
   await fs.writeFile(path.join(packDirectory, 'pack.json'), JSON.stringify(manifest));
-  const config = { version: 1, piecesDirectory: path.join(root, 'p'), stateDirectory: path.join(root, 's'), controlDirectory: path.join(root, 'c'), publicOrigin: 'https://review.example.invalid', pack: { packDirectory, skillsRoot, expectedVersion: '1.0.0' }, model: { providerID: 'synthetic', id: 'none' }, runtime: { version: '2.0.32', executable: await fs.realpath(process.execPath), server: 'http://127.0.0.1:12345' } };
+  const config = { version: 1, piecesDirectory: path.join(root, 'p'), stateDirectory: path.join(root, 's'), controlDirectory: path.join(root, 'c'), publicOrigin: 'https://review.example.invalid', pack: { packDirectory, skillsRoot, expectedVersion: '1.0.0' }, model: { providerID: 'synthetic', id: 'none' }, runtime: { version: hostVersion, executable: await fs.realpath(process.execPath), server: 'http://127.0.0.1:12345' } };
   const sessions = new Map(), prompts = [], tools = new Map(), hooks = new Map(), cleanups = [], pluginStops = new Map();
   let creates = 0, failure;
   const initialize = async (_c, directory) => {
@@ -39,7 +39,7 @@ async function fixture(t) {
     await pluginStops.get(directory)?.();
     const r = await readPrivate(path.join(config.stateDirectory, sha256(path.basename(directory)).slice(0, 12), 'piece.json'));
     const p = await preparePackWriter(config.pack, r.enrollment);
-    const ctx = { app: { version: '2.0.32' }, location: { directory }, agent: { get: async () => ({ location: { directory }, data: { id: 'writer', ...p.profile } }) },
+    const ctx = { app: { version: hostVersion }, location: { directory }, agent: { get: async () => ({ location: { directory }, data: { id: 'writer', ...p.profile } }) },
       session: {
         hook: async (kind, fn) => hooks.set(`${directory}:${kind}`, fn),
         get: async ({ sessionID }) => { if (!sessions.has(sessionID)) throw Error('Missing'); return structuredClone(sessions.get(sessionID)); },
@@ -70,6 +70,42 @@ async function fixture(t) {
   };
 }
 const newInput = { id: 'one', title: 'A synthetic beginning', format: 'long-form' };
+
+for (const version of ['2.0.32', '2.0.33', '2.1.0', '2.1.3', '2.10.0', '3.0.0']) test(`numeric minimum admits ${version} through source modules (fake host, not installed-host proof)`, async t => {
+  const f = await fixture(t, version), r = await f.manager.newPiece(newInput);
+  assert.equal(f.creates, 1); assert.equal(f.prompts.length, 1);
+  assert.deepEqual(await f.manager.resume('one'), r);
+  const s = f.sessions.get(r.conversation.sessionId), original = structuredClone(s);
+  for (const change of [{ id: 'ses_foreign' }, { agent: 'lead' }, { location: { directory: f.root } }, { permissions: [] }, { model: { providerID: 'synthetic', id: 'wrong' } }, { metadata: { goal: 'not-authority' } }]) {
+    Object.assign(s, change); await assert.rejects(f.manager.resume('one'));
+    for (const key of Object.keys(s)) delete s[key]; Object.assign(s, structuredClone(original));
+  }
+  assert.equal(f.creates, 1); assert.equal(f.prompts.length, 1);
+});
+
+test('both gates reject older, malformed, prerelease and unsafe numeric versions', async t => {
+  const f = await fixture(t);
+  for (const version of ['1.99.99', '2.0.9', '2.0.31', '', '2.1', '2.1.3.0', '2.1.x', 'v2.1.3', '2.1.3-beta.1', '2.1.3+build', '02.1.3', ' 2.1.3', '2.1.3\n', '2.1.9007199254740992', null, undefined, 213, {}]) {
+    await assert.rejects(validatePieceConfig({ ...f.config, runtime: { ...f.config.runtime, version } }), /version >=2\.0\.32 required/);
+    await assert.rejects(piecePlugin('unused', { enrollment: { directory: f.root } }, 'unused').setup({ location: { directory: f.root }, app: { version } }), /version >=2\.0\.32 required/);
+  }
+});
+
+test('2.1.3 numeric admission retains exact discovery CLI identity before API calls', async t => {
+  const f = await fixture(t, '2.1.3'), cli = path.join(f.root, 'cli.mjs'), log = path.join(f.root, 'calls.jsonl');
+  const script = version => `#!${process.execPath}\nimport fs from 'node:fs';\nif(process.argv[2]==='--version') console.log(${JSON.stringify(version)}); else fs.appendFileSync(${JSON.stringify(log)}, JSON.stringify(process.argv.slice(2))+'\\n');\n`;
+  const c = { ...f.config, runtime: { ...f.config.runtime, executable: cli } };
+  for (const version of ['2.0.32', '2.1.0', '2.1.4']) {
+    await fs.writeFile(cli, script(version), { mode: 0o700 });
+    await assert.rejects(initializePieceLocation(c, f.config.piecesDirectory), /Discovery CLI differs/);
+    await assert.rejects(fs.stat(log), { code: 'ENOENT' });
+  }
+  await fs.writeFile(cli, script('opencode v2.1.3'));
+  await initializePieceLocation(c, f.config.piecesDirectory);
+  const calls = (await fs.readFile(log, 'utf8')).trim().split('\n').map(JSON.parse);
+  assert.equal(calls.length, 2);
+  for (const args of calls) assert.deepEqual(args.slice(0, 4), ['api', '--server', c.runtime.server, 'get']);
+});
 
 test('only exact observational host work metadata accepted after strict empty startup', async t => {
   const f = await fixture(t), r = await f.manager.newPiece(newInput), session = f.sessions.get(r.conversation.sessionId);

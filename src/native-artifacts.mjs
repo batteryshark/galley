@@ -3,6 +3,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { verifyPrepared } from './writer.mjs';
 import { noLinks } from './files.mjs';
+import { writerToolsEntry } from './writer-tools.mjs';
 
 // Generate inert artifacts only. Neither writes .opencode nor merges configuration.
 export async function generateNative(prepared, output, bindingFile) {
@@ -11,6 +12,7 @@ export async function generateNative(prepared, output, bindingFile) {
   const { system, ...fields } = prepared.profile;
   const entry = `import { nativePlugin } from ${JSON.stringify(pathToFileURL(new URL('./native-plugin.mjs', import.meta.url).pathname).href)};\nexport default nativePlugin(${JSON.stringify(bindingFile)});\n`;
   const files = { [`${prepared.agent}.md`]: `---\n${JSON.stringify(fields)}\n---\n${system}`, 'galley-native.ts': entry };
+  if (prepared.capabilities) files[`${prepared.agent}-tools.mjs`] = writerToolsEntry(prepared);
   for (const [name, bytes] of Object.entries(files)) {
     const h = await fs.open(path.join(output, name), 'wx', 0o600);
     try { await h.writeFile(bytes); await h.sync(); } finally { await h.close(); }

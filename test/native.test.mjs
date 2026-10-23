@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs/promises';
 import path from 'node:path';
+import os from 'node:os';
 import net from 'node:net';
 import { randomUUID } from 'node:crypto';
 import { executeNative, exactAdmission, within } from '../src/native-worker.mjs';
@@ -45,7 +46,7 @@ async function splitProxy(f) {
   return b;
 }
 async function fixture(t, options = {}) {
-  const root = await fs.mkdtemp(path.resolve('.test-galley-n-'));
+  const root = await fs.mkdtemp(path.join(await fs.realpath(os.tmpdir()), 'n-'));
   const draft = path.join(root, 'draft.md'); await fs.writeFile(draft, '# Synthetic\n\nReview this paragraph.\n');
   const binding = { sessionId: 'ses_fake', sessionDirectory: path.resolve('.'), draft, assetRoots: [], agent: 'galley-writer-fake', upstreamIdentity: 'pending' };
   const directory = path.join(root, 'p'); await fs.mkdir(directory, { mode: 0o700 });

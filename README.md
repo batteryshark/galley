@@ -69,7 +69,8 @@ authorization or automatic work. Uncertain create/delivery outcomes are no-repla
 fences. See the guide for the precise metadata and recovery contract.
 
 No private pack, voice, local config, model or host default is bundled. Compatible
-CLI **and host 2.0.32** are required; version skew refuses, with no automatic
+CLI **and host must match exactly**, with a numeric release minimum of **2.0.32**
+(including 2.1.x); version skew refuses, with no automatic
 download/upgrade. Plugins/tools are **per-piece only**, never globally registered.
 The scoped writer cannot capture/generate images: it must request the needed asset
 or capability rather than fake a capture. Pi and Claude Code variants are thin,
@@ -113,6 +114,12 @@ Select text, tap the contextual field (or start typing on desktop), and finish w
 ## Connect the legacy editor
 
 Follow the [native setup guide](docs/native-setup.md): supply four caller-owned skill files, generate inert artifacts, separately install the writer profile and project-local plugin, start one compatible OpenCode runtime, then run Galley’s native **startup** connector. Later restarts use **attach** to the confirmed writer. OpenChamber can display and converse with that same runtime session; it is not a separate HTTP relay.
+
+For journaled operator startup with explicitly configured guarded images and a
+fixed chief recipient, see [supported writer startup and additional drafts](docs/writer-workflow.md).
+It uses your existing matching runtime; no image backend, private skills, chief
+designation or executable paths are bundled. Additional drafts have independent
+review stores under the same verified author, without replacing the first draft.
 
 The four skills are **not bundled and are not assumed publicly available**. `binding.skillPaths` must contain four canonical absolute file paths; the fourth must contain Humanizer `version: 3.1.0` metadata. Supporting trees require explicit validated `skillReferenceDirectories`; none are implicitly granted. Preparing a profile does not install it, start a session, or grant general project editing.
 

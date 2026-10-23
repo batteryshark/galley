@@ -8,18 +8,22 @@ import { startServer } from '../src/server.mjs';
 import { readPrivate } from '../src/private.mjs';
 import { openPieceManager } from '../src/new-piece.mjs';
 import { openPieceControl } from '../src/piece-control.mjs';
+import { attachDraftAuthor } from '../src/additional-draft.mjs';
+import { disconnected } from '../src/upstream.mjs';
 
 // All configuration is a trusted operator file. No control endpoint or browser input.
 let store, native, app, pieces, control;
+const authors = [];
 let interrupted = false, signalDone;
 const signal = new Promise(resolve => { signalDone = resolve; });
 function stop() { interrupted = true; signalDone(); void native?.close(); }
 process.once('SIGINT', stop); process.once('SIGTERM', stop);
-async function close() { await control?.close(); await app?.close(); await pieces?.close(); await native?.close(); await store?.close(); }
+async function close() { await control?.close(); await app?.close(); await pieces?.close(); for (const a of authors) await a.close(); await native?.close(); await store?.close(); }
 try {
   const [file, ...extra] = process.argv.slice(2);
   if (!file || extra.length) throw new Error('Explicit operator configuration required');
   const c = JSON.parse(await boundedRead(path.resolve(file), 8192));
+  if (c.attachedAuthors && (!Array.isArray(c.attachedAuthors) || c.attachedAuthors.length > 16)) throw new Error('Invalid attached authors');
   if (!['startup', 'attach'].includes(c.mode) || !path.isAbsolute(c.privateDirectory) || !path.isAbsolute(c.storeDirectory)) throw new Error('Invalid operator configuration');
   store = await openStore(c.storeDirectory);
   if (c.mode === 'startup' && store.state.comments.length) throw new Error('Startup requires empty synthetic review');
@@ -30,17 +34,20 @@ try {
     const journal = await readPrivate(path.join(c.privateDirectory, `startup-${binding.agent}.json`));
     if (journal.state !== 'created-not-edit-verified' || journal.sessionId !== binding.sessionId || journal.agent !== binding.agent) throw new Error('Attach requires confirmed exact writer');
   }
-  native = await openNative({ directory: c.privateDirectory, binding, ownerPID: c.ownerPID, ownerStartedAt: c.ownerStartedAt });
-  if (interrupted) throw new Error('Stopped');
-  console.log('Private native binding ready. Waiting for the single authenticated Galley project plugin owner within 60 seconds.');
-  await native.waitOwner();
-  if (prepared) {
-    const s = await startPreparedWriter(prepared, c.model, { directory: c.privateDirectory, connector: native, parentID: c.parentID });
-    await store.transaction(state => { Object.assign(state.binding, { sessionId: s.id, agent: prepared.agent, upstreamIdentity: native.identity }); });
-    console.log(JSON.stringify({ sessionId: s.id, agent: s.agent, state: 'created-not-edit-verified' }));
-  } else {
-    await native.inspect(binding.sessionId);
-    await store.transaction(state => { state.binding.upstreamIdentity = native.identity; });
+  if (c.retainedReadOnly && c.mode !== 'attach') throw new Error('Retained review must be attach-only');
+  if (!c.retainedReadOnly) {
+    native = await openNative({ directory: c.privateDirectory, binding, ownerPID: c.ownerPID, ownerStartedAt: c.ownerStartedAt });
+    if (interrupted) throw new Error('Stopped');
+    console.log('Private native binding ready. Waiting for the single authenticated Galley project plugin owner within 60 seconds.');
+    await native.waitOwner();
+    if (prepared) {
+      const s = await startPreparedWriter(prepared, c.model, { directory: c.privateDirectory, connector: native, parentID: c.parentID });
+      await store.transaction(state => { Object.assign(state.binding, { sessionId: s.id, agent: prepared.agent, upstreamIdentity: native.identity }); });
+      console.log(JSON.stringify({ sessionId: s.id, agent: s.agent, state: 'created-not-edit-verified' }));
+    } else {
+      await native.inspect(binding.sessionId);
+      await store.transaction(state => { state.binding.upstreamIdentity = native.identity; });
+    }
   }
   if (c.managedPiecesFile) {
     const pc = await readPrivate(c.managedPiecesFile);
@@ -50,7 +57,15 @@ try {
     if (restored.unavailable.length) console.error('Some managed pieces are unavailable; their histories are retained without replay. Reconcile privately.');
     control = await openPieceControl({ directory: pc.controlDirectory, manager: pieces });
   }
-  app = await startServer({ store, upstream: native, port: 4177, publicOrigin: process.env.GALLEY_ORIGIN, ...(pieces ? { resolveReview: token => pieces.resolveReview(token) } : {}) });
+  for (const file of c.attachedAuthors || []) authors.push(await attachDraftAuthor(await readPrivate(file)));
+  const entries = [{ store, upstream: native || disconnected, readOnly: !!c.retainedReadOnly }, ...authors.flatMap(a => a.entries)];
+  app = await startServer({ store, upstream: native, port: 4177, publicOrigin: process.env.GALLEY_ORIGIN, resolveReview: token => {
+    const matches = entries.filter(e => e.store.authorized(token));
+    const piece = pieces?.resolveReview(token);
+    if (piece) matches.push(piece);
+    if (matches.length > 1) throw new Error('Ambiguous review capability');
+    return matches[0];
+  } });
   console.log('Galley native review on 127.0.0.1:4177/galley/. Admission is not edit completion.');
   await signal;
 } catch {

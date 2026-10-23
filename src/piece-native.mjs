@@ -65,7 +65,8 @@ export function piecePlugin(bindingFile, options, sessionFile) {
   return { id: 'galley.piece', async setup(ctx) {
     // Never register schemas in an ancestor/global location.
     if (ctx.location.directory !== options.enrollment.directory) return;
-    if (ctx.app?.version !== '2.0.32') throw new Error('Unverified piece native host version');
+    const version = typeof ctx.app?.version === 'string' && /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(ctx.app.version) ? ctx.app.version.split('.').map(Number) : [];
+    if (version.length !== 3 || !version.every(Number.isSafeInteger) || version.join('.') !== ctx.app.version || !(version[0] > 2 || (version[0] === 2 && (version[1] > 0 || version[2] >= 32)))) throw new Error('Piece native host version >=2.0.32 required');
     const scoped = Object.create(ctx);
     scoped.session = Object.create(ctx.session);
     scoped.session.get = async input => {

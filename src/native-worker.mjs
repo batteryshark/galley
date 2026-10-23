@@ -21,7 +21,18 @@ export async function executeNative(ctx, job, authorize, ms = 1000) {
     const { prepared: p, model } = job;
     const resolved = await call(() => ctx.agent.get({ agentID: p.agent }));
     const a = resolved.data;
-    if (resolved.location?.directory !== p.directory || a?.id !== p.agent || a.mode !== 'primary' || a.system !== p.profile.system || !Array.isArray(a.permissions) || !equal(a.permissions.slice(-p.profile.permissions.length), p.profile.permissions)) throw new Error('Full runtime profile mismatch');
+    // V2 appends its built-in browser deny after configured agent permissions.
+    // Accept only that redundant deny; session readback remains exactly prepared.
+    const rules = a?.permissions;
+    const exactTail = offset => Array.isArray(rules) && equal(rules.slice(0, rules.length - offset).slice(-p.profile.permissions.length), p.profile.permissions);
+    const permissionsMatch = exactTail(0) || (equal(rules?.at(-1), { action: 'browser', resource: '*', effect: 'deny' }) && exactTail(1));
+    const mismatches = [
+      [resolved.location?.directory !== p.directory, 'location'], [a?.id !== p.agent, 'agent'],
+      [a?.mode !== 'primary', 'mode'], [a?.system !== p.profile.system, 'system'],
+      [!permissionsMatch, 'permissions'],
+    ].filter(([changed]) => changed).map(([, name]) => name);
+    if (mismatches.length) throw new Error(`Full runtime profile mismatch (${mismatches.join(', ')}); start writers with node bin/galley-writer.mjs start <writer.json>`);
+    if (p.capabilities && !(await call(() => ctx.tool.list())).some(t => t.id === p.capabilities.chiefTool)) throw new Error('Writer image guard/chief tool not loaded');
     if (job.parentID) {
       const parent = await call(() => ctx.session.get({ sessionID: job.parentID }));
       if (parent.id !== job.parentID || parent.location?.directory !== p.directory) throw new Error('Parent location mismatch');
@@ -40,6 +51,22 @@ export async function executeNative(ctx, job, authorize, ms = 1000) {
   const s = await call(() => ctx.session.get({ sessionID: b.sessionId }));
   assertSession(s, b);
   if (job.kind === 'inspect') return { id: s.id, directory: s.location.directory, agent: s.agent, upstreamIdentity: b.upstreamIdentity };
+  if (job.kind === 'selfcheck') {
+    const p = job.prepared;
+    const { assertWriterAffinity, checkChief } = await import('./writer-tools.mjs');
+    const imageCommand = p.capabilities.imageCommand;
+    const policy = { agent: p.agent, directory: p.directory, permissions: p.profile.permissions, ...p.capabilities };
+    assertWriterAffinity(s, policy, b.sessionId);
+    if (!equal(s.model, job.model)) throw new Error('Writer model does not match the requested model');
+    const tools = await call(() => ctx.tool.list());
+    if (!tools.some(t => t.id === p.capabilities.chiefTool)) throw new Error('Writer chief tool not loaded');
+    const shell = tools.find(t => t.id === 'shell');
+    if (!shell) throw new Error('Writer image tool not loaded');
+    const chief = await call(() => checkChief(ctx, policy, s.id));
+    const help = await within(() => shell.execute({ command: `${imageCommand} --help` }, { sessionID: s.id, agent: p.agent, messageID: `msg_${job.id.replaceAll('-', '')}`, id: `check_${job.id}`, signal: AbortSignal.timeout(10000), progress: async () => {} }), 11000);
+    if (help.output?.exit !== 0 || help.output?.truncated !== false || help.output?.status !== 'completed' || typeof help.output?.output !== 'string' || !help.output.output.includes('--prompt')) throw new Error('Writer image help returned an invalid shell output');
+    return { imageHelp: true, chief, sessionId: s.id };
+  }
   if (job.kind === 'observe') return { session: s, messages: await call(() => ctx.session.context({ sessionID: b.sessionId })) };
   if (job.kind === 'stop') { await authorize(); await call(() => ctx.session.interrupt({ sessionID: b.sessionId, continue: false })); return { stopped: true }; }
   if (job.kind === 'feedback') {

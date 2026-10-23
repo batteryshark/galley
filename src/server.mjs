@@ -93,6 +93,7 @@ export async function startServer({ store: defaultStore, prefix = '/galley', por
       authorize();
       if (req.headers['sec-fetch-site'] === 'cross-site' || (req.headers.origin && req.headers.origin !== origin)) throw fail(403, 'Origin denied');
       if (req.method !== 'GET' && (req.headers.origin !== origin || req.headers['x-galley'] !== '1')) throw fail(403, 'CSRF guard');
+      if (selected?.readOnly && req.method !== 'GET') throw fail(409, 'Historical review retained read-only; use the current author review link');
       if (req.method === 'GET' && route === '/api/document') return send(200, await snapshot(store, document));
       if (req.method === 'POST' && route === '/api/notes') return send(200, await collectNote({ store, document, authorize, data: await body(req) }));
       if (req.method === 'POST' && route === '/api/batches') {

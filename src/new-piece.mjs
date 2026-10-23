@@ -27,7 +27,8 @@ export async function validatePieceConfig(c) {
   const u = new URL(c.publicOrigin);
   if (u.origin !== c.publicOrigin || (u.protocol !== 'https:' && !(u.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(u.hostname)))) throw new Error('Exact review origin required');
   if (!c.model || !['id', 'providerID'].every(k => typeof c.model[k] === 'string' && c.model[k].length > 0 && c.model[k].length <= 240) || (c.model.variant !== undefined && (typeof c.model.variant !== 'string' || !c.model.variant)) || Object.keys(c.model).some(k => !['id', 'providerID', 'variant'].includes(k))) throw new Error('Explicit writer model required');
-  if (!c.runtime || c.runtime.version !== '2.0.32') throw new Error('Verified native runtime version required');
+  const version = typeof c.runtime?.version === 'string' && /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(c.runtime.version) ? c.runtime.version.split('.').map(Number) : [];
+  if (version.length !== 3 || !version.every(Number.isSafeInteger) || version.join('.') !== c.runtime.version || !(version[0] > 2 || (version[0] === 2 && (version[1] > 0 || version[2] >= 32)))) throw new Error('Native runtime version >=2.0.32 required');
   const server = new URL(c.runtime.server);
   if (server.origin !== c.runtime.server || server.protocol !== 'http:' || !['127.0.0.1', 'localhost', '[::1]'].includes(server.hostname)) throw new Error('Explicit existing loopback native server required');
   canonical(c.runtime.executable); await noLinks(c.runtime.executable);

@@ -41,7 +41,7 @@ export async function boundedRead(file, max = 1024 * 1024) {
   } finally { await handle.close(); }
 }
 
-export async function validateBinding(input) {
+export async function validateBinding(input, { unbound = false } = {}) {
   const binding = structuredClone(input);
   for (const key of ['draft', 'sessionDirectory']) await noLinks(binding[key]);
   if (!(await fs.stat(binding.sessionDirectory)).isDirectory()) throw new Error('Invalid session directory');
@@ -53,7 +53,7 @@ export async function validateBinding(input) {
     if (!(await fs.stat(root)).isDirectory()) throw new Error('Invalid asset root');
   }
   if (binding.siteAssetRoot && !binding.assetRoots.includes(binding.siteAssetRoot)) throw new Error('Register site asset root');
-  if (!/^[A-Za-z0-9_-]{1,128}$/.test(binding.sessionId) || typeof binding.upstreamIdentity !== 'string' || !binding.upstreamIdentity.trim()) throw new Error('Explicit upstream binding required');
+  if (!unbound && (!/^[A-Za-z0-9_-]{1,128}$/.test(binding.sessionId) || typeof binding.upstreamIdentity !== 'string' || !binding.upstreamIdentity.trim())) throw new Error('Explicit upstream binding required');
   return binding;
 }
 

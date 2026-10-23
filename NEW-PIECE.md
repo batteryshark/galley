@@ -47,7 +47,7 @@ model, host, credentials or pack are bundled/defaulted for public users.
   "model": {"providerID": "your-provider", "id": "your-model"},
   "runtime": {
     "executable": "/absolute/matching-opencode-cli",
-    "version": "2.0.32",
+    "version": "2.1.3",
     "server": "http://127.0.0.1:4096"
   }
 }
@@ -58,6 +58,8 @@ new service or an unauthenticated API fallback. The supported CLI owns its norma
 connection/authentication context. Galley never reads host credential registries
 or invents a bearer token. `--server` prevents automatic managed-server startup.
 Supply a CLI matching the verified host; version skew refuses before API calls.
+The numeric release minimum is 2.0.32, including 2.1.x; malformed/prerelease/build
+versions refuse. Passing that gate does not certify arbitrary future host APIs.
 No CLI download/upgrade is performed. The example port is not host discovery.
 
 Keep state/control outside the pieces and pack/source trees. Unix socket paths

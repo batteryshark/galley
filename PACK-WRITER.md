@@ -63,7 +63,9 @@ requires regenerating this exact-read profile; missing grants fail closed.
    Initial session creation/readback requires empty metadata and no parent; later
    exact-session observational work/assist metadata is advisory only, not authority
    or automatic work. See NEW-PIECE for the exact accepted shapes and message-affinity
-   check. Compatible CLI and host version **2.0.32** are required; skew fails closed.
+    check. Compatible CLI and host must match exactly and be numeric releases
+    **>=2.0.32** (including 2.1.x); skew fails closed. Admission is not universal
+    future-version compatibility certification.
 5. Preparation pins immutable pack bodies, format, artifact scope and session rules.
    Phase is mutable: `writer_read({target: 'guidance', phase: 'edit'})` (also
    `design-piece`, `design-visuals`, `draft`) loads the complete phase sources and

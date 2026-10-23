@@ -143,6 +143,10 @@ export async function openNative({ directory, binding, ownerPID, ownerStartedAt,
     },
     reconcile(comment) { return run('reconcile', { payload: { id: comment.messageId, text: comment.payload.text } }); },
     observe() { return run('observe'); },
+    selfCheck(prepared, model) {
+      if (prepared.agent !== binding.agent || prepared.directory !== binding.sessionDirectory || prepared.draft !== binding.draft) throw new Error('Wrong self-check binding');
+      return run('selfcheck', { prepared, model });
+    },
     stopWriter() { return run('stop'); },
     async startup(prepared, model, parentID) {
       if (prepared.directory !== binding.sessionDirectory || prepared.draft !== binding.draft || prepared.agent !== binding.agent) throw new Error('Wrong startup binding');
