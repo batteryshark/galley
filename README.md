@@ -20,6 +20,8 @@ npm ci --ignore-scripts --no-fund
 
 There is no build step. The application runs from this checkout.
 
+The server is in `src/`; the review page it serves to the browser (HTML, script and styles) is in [`staged/continuous-web/`](staged/continuous-web/).
+
 ## Quick start: disconnected review
 
 Create a Markdown draft and save a private `binding.json` outside the checkout. Replace these paths with existing canonical absolute paths, without symlinks:
